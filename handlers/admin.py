@@ -8,20 +8,17 @@ from aiogram.fsm.state import State, StatesGroup
 from config import Config
 from database import Database
 
-# Create router for administrator
 router = Router()
 db = Database()
 logger = logging.getLogger(__name__)
 
 
 class CustomPaymentStates(StatesGroup):
-    """FSM states for custom payment amount"""
     waiting_for_amount = State()
 
 
 @router.message(Command("stats"))
-async def show_statistics(message: Message):
-    """Show payment statistics"""
+async def show_statistics(message: Message) -> None:
     user_id = message.from_user.id
     
     if not Config.is_admin(user_id):
@@ -51,8 +48,7 @@ async def show_statistics(message: Message):
 
 
 @router.message(Command("help"))
-async def admin_help(message: Message):
-    """Show admin commands"""
+async def admin_help(message: Message) -> None:
     user_id = message.from_user.id
     
     if not Config.is_admin(user_id):
@@ -72,18 +68,15 @@ async def admin_help(message: Message):
 
 
 @router.callback_query(F.data.startswith("custom_pay_"))
-async def custom_payment_start(callback: CallbackQuery, state: FSMContext):
-    """Start custom payment amount input"""
+async def custom_payment_start(callback: CallbackQuery, state: FSMContext) -> None:
     user_id = callback.from_user.id
     
     if not Config.is_admin(user_id):
         await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
         return
     
-    # Parse callback_data: custom_pay_123
     payment_id = int(callback.data.split("_")[2])
     
-    # Get payment request information
     payment = await db.get_payment_by_id(payment_id)
     
     if not payment:
@@ -94,7 +87,6 @@ async def custom_payment_start(callback: CallbackQuery, state: FSMContext):
         await callback.answer("❌ Заявка уже оплачена!", show_alert=True)
         return
     
-    # Save payment_id in state
     await state.update_data(payment_id=payment_id, payment_message_id=callback.message.message_id)
     await state.set_state(CustomPaymentStates.waiting_for_amount)
     
@@ -108,8 +100,7 @@ async def custom_payment_start(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(CustomPaymentStates.waiting_for_amount, F.text)
-async def custom_payment_process(message: Message, state: FSMContext, bot):
-    """Process custom payment amount"""
+async def custom_payment_process(message: Message, state: FSMContext, bot) -> None:
     if message.text == "/cancel":
         await state.clear()
         await message.answer("❌ Отменено.")
@@ -130,11 +121,9 @@ async def custom_payment_process(message: Message, state: FSMContext, bot):
         await message.answer("❌ Неверный формат. Введите число (например: 30):")
         return
     
-    # Get payment_id from state
     data = await state.get_data()
     payment_id = data['payment_id']
     
-    # Get payment request information
     payment = await db.get_payment_by_id(payment_id)
     
     if not payment:
@@ -148,10 +137,8 @@ async def custom_payment_process(message: Message, state: FSMContext, bot):
         return
     
     try:
-        # Update status in database
         await db.update_payment_status(payment_id, "paid", payment_amount)
         
-        # Send notification to group chat
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
             photo=payment.screenshot_file_id,
@@ -164,7 +151,6 @@ async def custom_payment_process(message: Message, state: FSMContext, bot):
             parse_mode="HTML"
         )
         
-        # Send notification to employee
         try:
             await bot.send_message(
                 chat_id=payment.employee_id,
@@ -193,18 +179,15 @@ async def custom_payment_process(message: Message, state: FSMContext, bot):
 
 
 @router.callback_query(F.data.startswith("replied_"))
-async def process_replied(callback: CallbackQuery, bot):
-    """Handle admin replied action"""
+async def process_replied(callback: CallbackQuery, bot) -> None:
     user_id = callback.from_user.id
     
     if not Config.is_admin(user_id):
         await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
         return
     
-    # Parse callback_data: replied_123
     payment_id = int(callback.data.split("_")[1])
     
-    # Get payment request information
     payment = await db.get_payment_by_id(payment_id)
     
     if not payment:
@@ -219,10 +202,8 @@ async def process_replied(callback: CallbackQuery, bot):
         await callback.answer("❌ Вы уже отписали по этой заявке!", show_alert=True)
         return
     
-    # Update replied status in database
     await db.update_payment_replied(payment_id)
     
-    # Update administrator's message with "Отписал" note
     await callback.message.edit_caption(
         caption=(
             f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
@@ -235,7 +216,6 @@ async def process_replied(callback: CallbackQuery, bot):
         reply_markup=callback.message.reply_markup
     )
     
-    # Edit employee's message with "Отписал" note
     if payment.employee_message_id:
         try:
             await bot.edit_message_caption(
@@ -257,20 +237,17 @@ async def process_replied(callback: CallbackQuery, bot):
 
 
 @router.callback_query(F.data.startswith("pay_"))
-async def process_payment(callback: CallbackQuery, bot):
-    """Handle payment processing by administrator"""
+async def process_payment(callback: CallbackQuery, bot) -> None:
     user_id = callback.from_user.id
     
     if not Config.is_admin(user_id):
         await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
         return
     
-    # Parse callback_data: pay_15_123 or pay_25_123
     parts = callback.data.split("_")
-    payment_amount = int(parts[1])  # 15 or 25
+    payment_amount = int(parts[1])
     payment_id = int(parts[2])
     
-    # Get payment request information
     payment = await db.get_payment_by_id(payment_id)
     
     if not payment:
@@ -281,10 +258,8 @@ async def process_payment(callback: CallbackQuery, bot):
         await callback.answer("❌ Заявка уже оплачена!", show_alert=True)
         return
     
-    # Update status in database
     await db.update_payment_status(payment_id, "paid", payment_amount)
     
-    # Update administrator's message
     replied_text = "\n✍️ <b>Отписал</b>" if payment.replied else ""
     await callback.message.edit_caption(
         caption=(
@@ -298,7 +273,6 @@ async def process_payment(callback: CallbackQuery, bot):
         parse_mode="HTML"
     )
     
-    # Send notification to group chat
     try:
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
@@ -318,7 +292,6 @@ async def process_payment(callback: CallbackQuery, bot):
         )
         return
     
-    # Send notification to employee
     try:
         await bot.send_message(
             chat_id=payment.employee_id,
@@ -331,7 +304,6 @@ async def process_payment(callback: CallbackQuery, bot):
             parse_mode="HTML"
         )
     except Exception:
-        # If we couldn't send to employee, it's okay
         pass
     
     await callback.answer(f"✅ Заявка оплачена на сумму {payment_amount}!")

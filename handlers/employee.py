@@ -17,7 +17,6 @@ from keyboards import (
     get_admin_payment_keyboard
 )
 
-# Create router for employees
 router = Router()
 db = Database()
 rate_limiter = RateLimiter()
@@ -25,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 class PaymentStates(StatesGroup):
-    """FSM states for payment request creation"""
     waiting_for_screenshot = State()
     waiting_for_balance = State()
     waiting_for_username = State()
@@ -33,8 +31,7 @@ class PaymentStates(StatesGroup):
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message):
-    """Handler for /start command"""
+async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     
     if not Config.is_employee(user_id):
@@ -60,15 +57,13 @@ async def cmd_start(message: Message):
 
 
 @router.message(F.text == "📝 Создать заявку")
-async def start_payment_creation(message: Message, state: FSMContext):
-    """Start payment request creation"""
+async def start_payment_creation(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
     
     if not Config.is_employee(user_id):
         await message.answer("❌ У вас нет доступа к этой функции.")
         return
     
-    # Rate limiting check
     if not rate_limiter.check_rate_limit(user_id, max_requests=3, time_window=300):
         await message.answer(
             "⚠️ <b>Слишком много запросов</b>\n\n"
@@ -95,9 +90,7 @@ async def start_payment_creation(message: Message, state: FSMContext):
 
 
 @router.message(StateFilter(PaymentStates.waiting_for_screenshot), F.photo)
-async def process_screenshot(message: Message, state: FSMContext):
-    """Process screenshot"""
-    # Save file_id of the largest photo
+async def process_screenshot(message: Message, state: FSMContext) -> None:
     photo_file_id = message.photo[-1].file_id
     await state.update_data(screenshot_file_id=photo_file_id)
     
@@ -112,8 +105,7 @@ async def process_screenshot(message: Message, state: FSMContext):
 
 
 @router.message(StateFilter(PaymentStates.waiting_for_screenshot))
-async def invalid_screenshot(message: Message):
-    """Handle invalid screenshot format"""
+async def invalid_screenshot(message: Message) -> None:
     await message.answer(
         "❌ Пожалуйста, отправьте фото (скриншот).\n\n"
         "Используйте функцию отправки фото в Telegram.",
@@ -122,11 +114,9 @@ async def invalid_screenshot(message: Message):
 
 
 @router.message(StateFilter(PaymentStates.waiting_for_balance), F.text, ~F.text.in_(["❌ Отменить"]))
-async def process_balance(message: Message, state: FSMContext):
-    """Process balance"""
+async def process_balance(message: Message, state: FSMContext) -> None:
     balance = message.text.strip()
     
-    # Validate balance
     is_valid, error_msg = Validator.validate_balance(balance)
     if not is_valid:
         await message.answer(
@@ -136,7 +126,6 @@ async def process_balance(message: Message, state: FSMContext):
         )
         return
     
-    # Sanitize for safety
     balance = Validator.sanitize_html(balance)
     await state.update_data(balance=balance)
     
@@ -151,11 +140,9 @@ async def process_balance(message: Message, state: FSMContext):
 
 
 @router.message(StateFilter(PaymentStates.waiting_for_username), F.text, ~F.text.in_(["❌ Отменить"]))
-async def process_username(message: Message, state: FSMContext):
-    """Process username and show preview"""
+async def process_username(message: Message, state: FSMContext) -> None:
     username = message.text.strip()
     
-    # Validate username
     is_valid, error_msg = Validator.validate_username(username)
     if not is_valid:
         await message.answer(
@@ -165,17 +152,14 @@ async def process_username(message: Message, state: FSMContext):
         )
         return
     
-    # Format and sanitize username
     username = Validator.format_username(username)
     username = Validator.sanitize_html(username)
     await state.update_data(username_field=username)
     
-    # Get all data
     data = await state.get_data()
     
     await state.set_state(PaymentStates.confirming)
     
-    # Send preview with photo
     try:
         await message.answer_photo(
             photo=data['screenshot_file_id'],
@@ -198,14 +182,12 @@ async def process_username(message: Message, state: FSMContext):
 
 
 @router.callback_query(F.data == "confirm_payment", StateFilter(PaymentStates.confirming))
-async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
-    """Confirm and create payment request"""
+async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> None:
     data = await state.get_data()
     user_id = callback.from_user.id
     username = callback.from_user.username
     
     try:
-        # Create payment request
         payment = Payment(
             employee_id=user_id,
             employee_username=username,
@@ -216,7 +198,6 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
         
         payment_id = await db.create_payment(payment)
         
-        # Send to all administrators
         admin_success = False
         for admin_id in Config.ADMIN_IDS:
             try:
@@ -243,7 +224,6 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
             )
             return
         
-        # Edit message at employee chat and save message_id
         edited_message = await callback.message.edit_caption(
             caption=(
                 f"✅ <b>Заявка #{payment_id} успешно создана!</b>\n\n"
@@ -254,13 +234,11 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
             parse_mode="HTML"
         )
         
-        # Save employee message_id to database
         await db.update_employee_message_id(payment_id, edited_message.message_id)
         
         await callback.answer("✅ Заявка отправлена!")
         await state.clear()
         
-        # Return to main menu
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_menu_keyboard()
@@ -275,8 +253,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
 
 
 @router.callback_query(F.data == "cancel_payment", StateFilter(PaymentStates.confirming))
-async def cancel_payment_confirm(callback: CallbackQuery, state: FSMContext):
-    """Cancel payment request creation at confirmation stage"""
+async def cancel_payment_confirm(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.delete()
     await callback.message.answer(
@@ -287,8 +264,7 @@ async def cancel_payment_confirm(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(F.text == "❌ Отменить", StateFilter("*"))
-async def cancel_operation(message: Message, state: FSMContext):
-    """Cancel operation"""
+async def cancel_operation(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state is None:
         return
@@ -301,8 +277,7 @@ async def cancel_operation(message: Message, state: FSMContext):
 
 
 @router.message(F.text == "📋 Мои заявки")
-async def show_my_payments(message: Message):
-    """Show user's active payment requests"""
+async def show_my_payments(message: Message) -> None:
     user_id = message.from_user.id
     
     if not Config.is_employee(user_id):
@@ -346,8 +321,7 @@ async def show_my_payments(message: Message):
 
 
 @router.callback_query(F.data.startswith("delete_"))
-async def delete_payment(callback: CallbackQuery):
-    """Delete payment request"""
+async def delete_payment(callback: CallbackQuery) -> None:
     payment_id = int(callback.data.split("_")[1])
     user_id = callback.from_user.id
     
@@ -367,8 +341,7 @@ async def delete_payment(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "back_to_menu")
-async def back_to_menu(callback: CallbackQuery):
-    """Return to main menu"""
+async def back_to_menu(callback: CallbackQuery) -> None:
     await callback.message.delete()
     await callback.message.answer(
         "Выберите действие:",

@@ -9,7 +9,6 @@ from config import Config
 from database import Database
 from handlers import employee, admin
 
-# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,13 +19,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global variables for graceful shutdown
 bot_instance = None
 db_instance = None
 
 
-async def shutdown(signal_type=None):
-    """Graceful shutdown handler"""
+async def shutdown(signal_type: str = None) -> None:
     if signal_type:
         logger.info(f"Получен сигнал {signal_type}, выполняется остановка...")
     
@@ -45,11 +42,9 @@ async def shutdown(signal_type=None):
             logger.error(f"Error closing database: {e}")
 
 
-async def main():
-    """Main function to start the bot"""
+async def main() -> None:
     global bot_instance, db_instance
     
-    # Configuration validation
     try:
         Config.validate()
         logger.info("✅ Конфигурация загружена успешно")
@@ -57,7 +52,6 @@ async def main():
         logger.error(f"❌ Ошибка конфигурации: {e}")
         return
     
-    # Database initialization
     db_instance = Database()
     try:
         await db_instance.init_db()
@@ -66,7 +60,6 @@ async def main():
         logger.error(f"❌ Ошибка инициализации БД: {e}")
         return
     
-    # Create bot and dispatcher
     try:
         bot_instance = Bot(
             token=Config.BOT_TOKEN,
@@ -74,13 +67,11 @@ async def main():
         )
         dp = Dispatcher()
         
-        # Register routers
         dp.include_router(employee.router)
         dp.include_router(admin.router)
         
         logger.info("🤖 Бот запущен и готов к работе!")
         
-        # Send notification to all administrators about launch
         for admin_id in Config.ADMIN_IDS:
             try:
                 await bot_instance.send_message(
@@ -91,7 +82,6 @@ async def main():
             except Exception as e:
                 logger.warning(f"Не удалось отправить уведомление администратору {admin_id}: {e}")
         
-        # Start polling
         await dp.start_polling(bot_instance, allowed_updates=dp.resolve_used_update_types())
         
     except Exception as e:

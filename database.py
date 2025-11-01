@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
-    """Class for working with SQLite database"""
     
     def __init__(self, db_path: str = "bot_database.db"):
         self.db_path = db_path
@@ -17,7 +16,6 @@ class Database:
     
     @asynccontextmanager
     async def get_connection(self):
-        """Get database connection with automatic cleanup"""
         conn = None
         try:
             conn = await aiosqlite.connect(self.db_path)
@@ -32,7 +30,6 @@ class Database:
     
     
     async def init_db(self):
-        """Initialize database and create tables"""
         try:
             async with self.get_connection() as db:
                 await db.execute("""
@@ -52,7 +49,6 @@ class Database:
                     )
                 """)
                 
-                # Create indexes for better performance
                 await db.execute("""
                     CREATE INDEX IF NOT EXISTS idx_employee_status 
                     ON payments(employee_id, status)
@@ -62,16 +58,14 @@ class Database:
                     ON payments(status)
                 """)
                 
-                # Add replied column if it doesn't exist (for existing databases)
                 try:
                     await db.execute("ALTER TABLE payments ADD COLUMN replied INTEGER DEFAULT 0")
                 except:
-                    pass  # Column already exists
-                # Add employee_message_id column if it doesn't exist
+                    pass
                 try:
                     await db.execute("ALTER TABLE payments ADD COLUMN employee_message_id INTEGER")
                 except:
-                    pass  # Column already exists
+                    pass
                     
                 await db.commit()
                 logger.info("Database initialized successfully")
@@ -81,7 +75,6 @@ class Database:
     
     
     async def create_payment(self, payment: Payment) -> int:
-        """Create new payment request"""
         try:
             async with self.get_connection() as db:
                 cursor = await db.execute("""
@@ -108,7 +101,6 @@ class Database:
     
     
     async def get_payment_by_id(self, payment_id: int) -> Optional[Payment]:
-        """Get payment request by ID"""
         try:
             async with self.get_connection() as db:
                 cursor = await db.execute(
@@ -138,7 +130,6 @@ class Database:
     
     
     async def get_user_pending_payments(self, employee_id: int) -> List[Payment]:
-        """Get all active payment requests for user"""
         try:
             async with self.get_connection() as db:
                 cursor = await db.execute(
@@ -168,8 +159,7 @@ class Database:
             return []
     
     
-    async def update_payment_status(self, payment_id: int, status: str, payment_amount: int):
-        """Update payment request status and amount"""
+    async def update_payment_status(self, payment_id: int, status: str, payment_amount: int) -> None:
         try:
             async with self.get_connection() as db:
                 await db.execute(
@@ -182,8 +172,7 @@ class Database:
             logger.error(f"Failed to update payment #{payment_id} status: {e}")
             raise
     
-    async def update_payment_replied(self, payment_id: int):
-        """Update payment request replied status"""
+    async def update_payment_replied(self, payment_id: int) -> None:
         try:
             async with self.get_connection() as db:
                 await db.execute(
@@ -196,8 +185,7 @@ class Database:
             logger.error(f"Failed to update payment #{payment_id} replied status: {e}")
             raise
     
-    async def update_employee_message_id(self, payment_id: int, message_id: int):
-        """Update employee message ID for payment request"""
+    async def update_employee_message_id(self, payment_id: int, message_id: int) -> None:
         try:
             async with self.get_connection() as db:
                 await db.execute(
@@ -210,7 +198,6 @@ class Database:
             raise
     
     async def delete_payment(self, payment_id: int, employee_id: int) -> bool:
-        """Delete payment request (only if it belongs to employee and not paid)"""
         try:
             async with self.get_connection() as db:
                 cursor = await db.execute(
@@ -227,10 +214,8 @@ class Database:
             return False
     
     async def get_statistics(self, days: int = 30) -> dict:
-        """Get payment statistics for the last N days"""
         try:
             async with self.get_connection() as db:
-                # Total payments
                 cursor = await db.execute(
                     """SELECT COUNT(*) as total, SUM(payment_amount) as total_amount
                        FROM payments 
@@ -247,14 +232,12 @@ class Database:
                     'by_employee': {}
                 }
                 
-                # Pending payments
                 cursor = await db.execute(
                     "SELECT COUNT(*) as pending FROM payments WHERE status = 'pending'"
                 )
                 row = await cursor.fetchone()
                 stats['pending'] = row['pending'] or 0
                 
-                # By employee
                 cursor = await db.execute(
                     """SELECT employee_id, employee_username, 
                               COUNT(*) as count, SUM(payment_amount) as amount
@@ -283,8 +266,7 @@ class Database:
                 'by_employee': {}
             }
     
-    async def close(self):
-        """Close database connection"""
+    async def close(self) -> None:
         if self._connection:
             await self._connection.close()
             logger.info("Database connection closed")

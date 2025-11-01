@@ -5,17 +5,16 @@ from typing import Optional
 
 @dataclass
 class Payment:
-    """Payment request model"""
     id: Optional[int] = None
     employee_id: int = 0
     employee_username: Optional[str] = None
     balance: str = ""
     username_field: str = ""
     screenshot_file_id: str = ""
-    status: str = "pending"  # pending, paid
+    status: str = "pending"
     payment_amount: Optional[int] = None
-    replied: bool = False  # True if admin replied
-    employee_message_id: Optional[int] = None  # Message ID at employee's chat
+    replied: bool = False
+    employee_message_id: Optional[int] = None
     created_at: Optional[datetime] = None
     paid_at: Optional[datetime] = None
 
