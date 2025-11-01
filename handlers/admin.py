@@ -4,26 +4,26 @@ from aiogram.types import CallbackQuery
 from config import Config
 from database import Database
 
-# Создаем роутер для администратора
+# Create router for administrator
 router = Router()
 db = Database()
 
 
 @router.callback_query(F.data.startswith("pay_"))
 async def process_payment(callback: CallbackQuery, bot):
-    """Обработка оплаты администратором"""
+    """Handle payment processing by administrator"""
     user_id = callback.from_user.id
     
     if not Config.is_admin(user_id):
         await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
         return
     
-    # Парсим данные из callback_data: pay_15_123 или pay_25_123
+    # Parse callback_data: pay_15_123 or pay_25_123
     parts = callback.data.split("_")
-    payment_amount = int(parts[1])  # 15 или 25
+    payment_amount = int(parts[1])  # 15 or 25
     payment_id = int(parts[2])
     
-    # Получаем информацию о заявке
+    # Get payment request information
     payment = await db.get_payment_by_id(payment_id)
     
     if not payment:
@@ -34,10 +34,10 @@ async def process_payment(callback: CallbackQuery, bot):
         await callback.answer("❌ Заявка уже оплачена!", show_alert=True)
         return
     
-    # Обновляем статус в базе
+    # Update status in database
     await db.update_payment_status(payment_id, "paid", payment_amount)
     
-    # Обновляем сообщение администратора
+    # Update administrator's message
     await callback.message.edit_caption(
         caption=(
             f"✅ <b>Заявка #{payment_id} ОПЛАЧЕНА</b>\n\n"
@@ -49,7 +49,7 @@ async def process_payment(callback: CallbackQuery, bot):
         parse_mode="HTML"
     )
     
-    # Отправляем уведомление в групповой чат
+    # Send notification to group chat
     try:
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
@@ -69,7 +69,7 @@ async def process_payment(callback: CallbackQuery, bot):
         )
         return
     
-    # Отправляем уведомление сотруднику
+    # Send notification to employee
     try:
         await bot.send_message(
             chat_id=payment.employee_id,
@@ -82,7 +82,7 @@ async def process_payment(callback: CallbackQuery, bot):
             parse_mode="HTML"
         )
     except Exception:
-        # Если не удалось отправить сотруднику, ничего страшного
+        # If we couldn't send to employee, it's okay
         pass
     
     await callback.answer(f"✅ Заявка оплачена на сумму {payment_amount}!")

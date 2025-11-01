@@ -8,7 +8,7 @@ from config import Config
 from database import Database
 from handlers import employee, admin
 
-# Настройка логирования
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Главная функция запуска бота"""
+    """Main function to start the bot"""
     
-    # Проверка конфигурации
+    # Configuration validation
     try:
         Config.validate()
         logger.info("✅ Конфигурация загружена успешно")
@@ -27,25 +27,25 @@ async def main():
         logger.error(f"❌ Ошибка конфигурации: {e}")
         return
     
-    # Инициализация базы данных
+    # Database initialization
     db = Database()
     await db.init_db()
     logger.info("✅ База данных инициализирована")
     
-    # Создание бота и диспетчера
+    # Create bot and dispatcher
     bot = Bot(
         token=Config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
     
-    # Регистрация роутеров
+    # Register routers
     dp.include_router(employee.router)
     dp.include_router(admin.router)
     
     logger.info("🤖 Бот запущен и готов к работе!")
     
-    # Отправка уведомления всем администраторам о запуске
+    # Send notification to all administrators about launch
     for admin_id in Config.ADMIN_IDS:
         try:
             await bot.send_message(
@@ -56,7 +56,7 @@ async def main():
         except Exception as e:
             logger.warning(f"Не удалось отправить уведомление администратору {admin_id}: {e}")
     
-    # Запуск polling
+    # Start polling
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:

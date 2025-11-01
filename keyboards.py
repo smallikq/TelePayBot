@@ -7,7 +7,7 @@ from aiogram.types import (
 
 
 def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Главное меню для сотрудников"""
+    """Main menu for employees"""
     keyboard = [
         [KeyboardButton(text="📝 Создать заявку")],
         [KeyboardButton(text="📋 Мои заявки")]
@@ -20,7 +20,7 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
 
 
 def get_cancel_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура с кнопкой отмены"""
+    """Keyboard with cancel button"""
     keyboard = [[KeyboardButton(text="❌ Отменить")]]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
@@ -29,7 +29,7 @@ def get_cancel_keyboard() -> ReplyKeyboardMarkup:
 
 
 def get_confirm_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура подтверждения заявки"""
+    """Payment request confirmation keyboard"""
     keyboard = [
         [
             InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_payment"),
@@ -40,7 +40,7 @@ def get_confirm_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_admin_payment_keyboard(payment_id: int) -> InlineKeyboardMarkup:
-    """Клавиатура для администратора с кнопками оплаты"""
+    """Administrator keyboard with payment buttons"""
     keyboard = [
         [
             InlineKeyboardButton(text="💵 Оплатить 15", callback_data=f"pay_15_{payment_id}"),
@@ -51,7 +51,7 @@ def get_admin_payment_keyboard(payment_id: int) -> InlineKeyboardMarkup:
 
 
 def get_payment_actions_keyboard(payment_id: int) -> InlineKeyboardMarkup:
-    """Клавиатура действий с заявкой для сотрудника"""
+    """Payment request actions keyboard for employee"""
     keyboard = [
         [
             InlineKeyboardButton(text="🗑 Удалить заявку", callback_data=f"delete_{payment_id}")
@@ -61,7 +61,7 @@ def get_payment_actions_keyboard(payment_id: int) -> InlineKeyboardMarkup:
 
 
 def get_back_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура с кнопкой назад"""
+    """Keyboard with back button"""
     keyboard = [
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
     ]

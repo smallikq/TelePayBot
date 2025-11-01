@@ -5,13 +5,13 @@ from datetime import datetime
 
 
 class Database:
-    """Класс для работы с SQLite базой данных"""
+    """Class for working with SQLite database"""
     
     def __init__(self, db_path: str = "bot_database.db"):
         self.db_path = db_path
     
     async def init_db(self):
-        """Инициализация базы данных и создание таблиц"""
+        """Initialize database and create tables"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS payments (
@@ -30,7 +30,7 @@ class Database:
             await db.commit()
     
     async def create_payment(self, payment: Payment) -> int:
-        """Создание новой заявки на оплату"""
+        """Create new payment request"""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute("""
                 INSERT INTO payments (
@@ -50,7 +50,7 @@ class Database:
             return cursor.lastrowid
     
     async def get_payment_by_id(self, payment_id: int) -> Optional[Payment]:
-        """Получение заявки по ID"""
+        """Get payment request by ID"""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -74,7 +74,7 @@ class Database:
             return None
     
     async def get_user_pending_payments(self, employee_id: int) -> List[Payment]:
-        """Получение всех активных заявок пользователя"""
+        """Get all active payment requests for user"""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -99,7 +99,7 @@ class Database:
             return payments
     
     async def update_payment_status(self, payment_id: int, status: str, payment_amount: int):
-        """Обновление статуса заявки и суммы оплаты"""
+        """Update payment request status and amount"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 "UPDATE payments SET status = ?, payment_amount = ?, paid_at = ? WHERE id = ?",
@@ -108,7 +108,7 @@ class Database:
             await db.commit()
     
     async def delete_payment(self, payment_id: int, employee_id: int) -> bool:
-        """Удаление заявки (только если она принадлежит сотруднику и не оплачена)"""
+        """Delete payment request (only if it belongs to employee and not paid)"""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 "DELETE FROM payments WHERE id = ? AND employee_id = ? AND status = 'pending'",

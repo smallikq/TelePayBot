@@ -5,7 +5,7 @@ from typing import Optional
 
 @dataclass
 class Payment:
-    """Модель заявки на оплату"""
+    """Payment request model"""
     id: Optional[int] = None
     employee_id: int = 0
     employee_username: Optional[str] = None

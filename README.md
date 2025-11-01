@@ -1,46 +1,46 @@
 # Telegram Payment Bot 💰
 
-Telegram бот для управления заявками сотрудников на оплату с автоматической отправкой уведомлений.
+Telegram bot for managing employee payment requests with automatic notifications.
 
-## 🎯 Возможности
+## 🎯 Features
 
-### Для сотрудников:
-- 📝 Создание заявок на оплату (скриншот + баланс + юзернейм)
-- 📋 Просмотр активных заявок
-- 🗑 Удаление неоплаченных заявок
-- ✅ Получение уведомлений об оплате
+### For Employees:
+- 📝 Create payment requests (screenshot + balance + username)
+- 📋 View active requests
+- 🗑 Delete unpaid requests
+- ✅ Receive payment notifications
 
-### Для администратора:
-- 📨 Получение всех заявок от сотрудников
-- 💵 Кнопки быстрой оплаты (15 или 25)
-- 📊 Автоматическое обновление статусов в БД
+### For Administrator:
+- 📨 Receive all requests from employees
+- 💵 Quick payment buttons (15 or 25)
+- 📊 Automatic status updates in database
 
-### Автоматизация:
-- 📢 Автоматическая отправка в групповой чат после оплаты
-- 💾 Хранение всех данных в SQLite базе
-- 🎨 Красивый интерфейс с эмодзи и кнопками
+### Automation:
+- 📢 Automatic posting to group chat after payment
+- 💾 Store all data in SQLite database
+- 🎨 Beautiful interface with emojis and buttons
 
-## 📋 Требования
+## 📋 Requirements
 
 - Python 3.9+
-- Telegram бот токен (получите у [@BotFather](https://t.me/BotFather))
+- Telegram bot token (get from [@BotFather](https://t.me/BotFather))
 
-## 🚀 Установка
+## 🚀 Installation
 
-### 1. Клонируйте репозиторий
+### 1. Clone the repository
 ```bash
 git clone <your-repo>
 cd <project-folder>
 ```
 
-### 2. Установите зависимости
+### 2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Создайте файл конфигурации
+### 3. Create configuration file
 
-Создайте файл `.env` в корне проекта:
+Create a `.env` file in the project root:
 
 **Windows:**
 ```bash
@@ -52,174 +52,174 @@ copy .env.example .env
 cp .env.example .env
 ```
 
-### 4. Настройте `.env` файл
+### 4. Configure `.env` file
 
-Откройте `.env` и заполните следующие параметры:
+Open `.env` and fill in the following parameters:
 
 ```env
-BOT_TOKEN=ваш_токен_бота
-ADMIN_ID=ваш_telegram_id
-GROUP_CHAT_ID=id_группового_чата
+BOT_TOKEN=your_bot_token
+ADMIN_ID=your_telegram_id
+GROUP_CHAT_ID=group_chat_id
 EMPLOYEE_IDS=id1,id2,id3
 ```
 
-#### Как получить необходимые данные:
+#### How to get required data:
 
-**BOT_TOKEN** - токен бота:
-1. Напишите [@BotFather](https://t.me/BotFather)
-2. Отправьте `/newbot`
-3. Следуйте инструкциям
-4. Скопируйте полученный токен
+**BOT_TOKEN** - bot token:
+1. Message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot`
+3. Follow the instructions
+4. Copy the received token
 
-**ADMIN_ID** и **EMPLOYEE_IDS** - Telegram ID пользователей:
-1. Напишите [@userinfobot](https://t.me/userinfobot)
-2. Отправьте любое сообщение
-3. Скопируйте ваш ID
+**ADMIN_ID** and **EMPLOYEE_IDS** - Telegram user IDs:
+1. Message [@userinfobot](https://t.me/userinfobot)
+2. Send any message
+3. Copy your ID
 
-**GROUP_CHAT_ID** - ID группового чата:
-1. Создайте группу в Telegram
-2. Добавьте вашего бота в группу (сделайте его администратором)
-3. Отправьте любое сообщение в группу
-4. Перейдите по ссылке: `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates`
-   (замените `<BOT_TOKEN>` на токен вашего бота)
-5. Найдите в ответе `"chat":{"id":-1001234567890`
-6. Скопируйте это число (оно начинается с минуса)
+**GROUP_CHAT_ID** - group chat ID:
+1. Create a group in Telegram
+2. Add your bot to the group (make it an administrator)
+3. Send any message to the group
+4. Go to: `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates`
+   (replace `<BOT_TOKEN>` with your bot token)
+5. Find in the response `"chat":{"id":-1001234567890`
+6. Copy this number (it starts with a minus sign)
 
-## ▶️ Запуск
+## ▶️ Running
 
-### Способ 1: Через скрипт (Windows)
+### Method 1: Via script (Windows)
 
 ```bash
 start.bat
 ```
 
-### Способ 2: Напрямую
+### Method 2: Direct
 
 ```bash
 python main.py
 ```
 
-Бот запустится и отправит уведомление администратору о старте.
+The bot will start and send a notification to the administrator about the launch.
 
-## 📱 Использование
+## 📱 Usage
 
-### Для сотрудников:
+### For Employees:
 
-1. Запустите бота командой `/start`
-2. Нажмите "📝 Создать заявку"
-3. Отправьте скриншот (фото)
-4. Введите баланс
-5. Введите юзернейм
-6. Подтвердите заявку
+1. Start the bot with `/start` command
+2. Press "📝 Создать заявку" (Create Request)
+3. Send a screenshot (photo)
+4. Enter balance
+5. Enter username
+6. Confirm the request
 
-Для просмотра активных заявок нажмите "📋 Мои заявки"
+To view active requests, press "📋 Мои заявки" (My Requests)
 
-### Для администратора:
+### For Administrator:
 
-1. Получите уведомление о новой заявке
-2. Проверьте данные
-3. Нажмите "💵 Оплатить 15" или "💵 Оплатить 25"
-4. Бот автоматически отправит информацию в групповой чат и уведомит сотрудника
+1. Receive notification about new request
+2. Check the data
+3. Press "💵 Оплатить 15" (Pay 15) or "💵 Оплатить 25" (Pay 25)
+4. Bot automatically sends information to group chat and notifies employee
 
-### Схема работы:
+### Workflow:
 
 ```
-Сотрудник                    Бот                    Администратор          Групповой чат
+Employee                     Bot                    Administrator          Group Chat
     |                         |                           |                        |
-    |---> Создает заявку ---->|                           |                        |
-    |    (скрин+баланс+username)                          |                        |
+    |---> Creates request --->|                           |                        |
+    |    (screenshot+balance+username)                    |                        |
     |                         |                           |                        |
-    |                         |---> Отправляет заявку --->|                        |
-    |                         |     с кнопками оплаты     |                        |
+    |                         |---> Sends request ------->|                        |
+    |                         |     with payment buttons  |                        |
     |                         |                           |                        |
-    |                         |                           |<--- Нажимает кнопку    |
-    |                         |                           |    "Оплатить 15/25"   |
+    |                         |                           |<--- Clicks button      |
+    |                         |                           |    "Pay 15/25"        |
     |                         |                           |                        |
-    |                         |<--- Обновление БД --------|                        |
+    |                         |<--- Updates DB -----------|                        |
     |                         |                           |                        |
-    |<--- Уведомление --------|                           |                        |
-    |    "Оплачено!"          |                           |                        |
+    |<--- Notification -------|                           |                        |
+    |    "Paid!"              |                           |                        |
     |                         |                           |                        |
-    |                         |---> Отправка в чат ----------------------->|        |
-    |                         |     (скрин+данные+сумма)                   |        |
+    |                         |---> Posts to chat ----------------------->|        |
+    |                         |     (screenshot+data+amount)              |        |
 ```
 
-## 🗂 Структура проекта
+## 🗂 Project Structure
 
 ```
 .
-├── main.py                 # Точка входа, инициализация бота
-├── config.py              # Конфигурация и загрузка .env
-├── database.py            # Работа с SQLite БД
-├── models.py              # Модели данных
-├── keyboards.py           # Клавиатуры бота
-├── handlers/              # Обработчики
+├── main.py                 # Entry point, bot initialization
+├── config.py              # Configuration and .env loading
+├── database.py            # SQLite database operations
+├── models.py              # Data models
+├── keyboards.py           # Bot keyboards
+├── handlers/              # Handlers
 │   ├── __init__.py
-│   ├── employee.py        # Функционал для сотрудников
-│   └── admin.py           # Функционал для администратора
-├── requirements.txt       # Зависимости Python
-├── .env.example          # Пример конфигурации
-├── .env                  # Ваша конфигурация (не в git)
-├── .gitignore           # Игнорируемые файлы
-├── start.bat            # Скрипт запуска для Windows
-└── README.md            # Документация
+│   ├── employee.py        # Employee functionality
+│   └── admin.py           # Administrator functionality
+├── requirements.txt       # Python dependencies
+├── .env.example          # Configuration example
+├── .env                  # Your configuration (not in git)
+├── .gitignore           # Ignored files
+├── start.bat            # Windows startup script
+└── README.md            # Documentation
 ```
 
-## 🗄 База данных
+## 🗄 Database
 
-Бот использует SQLite базу данных `bot_database.db` со следующей структурой:
+The bot uses SQLite database `bot_database.db` with the following structure:
 
-**Таблица `payments`:**
-- `id` - ID заявки
-- `employee_id` - Telegram ID сотрудника
-- `employee_username` - Юзернейм сотрудника
-- `balance` - Баланс из заявки
-- `username_field` - Юзернейм из заявки
-- `screenshot_file_id` - ID скриншота в Telegram
-- `status` - Статус (pending/paid)
-- `payment_amount` - Сумма оплаты (15 или 25)
-- `created_at` - Дата создания
-- `paid_at` - Дата оплаты
+**Table `payments`:**
+- `id` - Request ID
+- `employee_id` - Employee Telegram ID
+- `employee_username` - Employee username
+- `balance` - Balance from request
+- `username_field` - Username from request
+- `screenshot_file_id` - Screenshot ID in Telegram
+- `status` - Status (pending/paid)
+- `payment_amount` - Payment amount (15 or 25)
+- `created_at` - Creation date
+- `paid_at` - Payment date
 
-## 🛠 Технологии
+## 🛠 Technologies
 
-- **aiogram 3.13.1** - современный фреймворк для Telegram ботов
-- **aiosqlite** - асинхронная работа с SQLite
-- **python-dotenv** - загрузка конфигурации из .env
+- **aiogram 3.13.1** - modern framework for Telegram bots
+- **aiosqlite** - asynchronous SQLite operations
+- **python-dotenv** - load configuration from .env
 
-## 🔒 Безопасность
+## 🔒 Security
 
-- Доступ к функциям ограничен по Telegram ID
-- Все ID хранятся в `.env` файле (не добавляйте его в git!)
-- Сотрудники могут удалять только свои неоплаченные заявки
-- Только администратор может обрабатывать оплаты
+- Access to functions is restricted by Telegram ID
+- All IDs are stored in `.env` file (don't add it to git!)
+- Employees can only delete their own unpaid requests
+- Only administrator can process payments
 
-## ❓ Частые вопросы
+## ❓ FAQ
 
-**Q: Как добавить нового сотрудника?**
-A: Добавьте его Telegram ID в `EMPLOYEE_IDS` в `.env` файле через запятую, затем перезапустите бота.
+**Q: How to add a new employee?**
+A: Add their Telegram ID to `EMPLOYEE_IDS` in `.env` file separated by comma, then restart the bot.
 
-**Q: Можно ли изменить суммы оплаты?**
-A: Да, измените значения в файле `keyboards.py` в функции `get_admin_payment_keyboard()`.
+**Q: Can I change payment amounts?**
+A: Yes, modify values in `keyboards.py` file in `get_admin_payment_keyboard()` function.
 
-**Q: Как посмотреть историю всех оплат?**
-A: Все данные хранятся в файле `bot_database.db`. Вы можете открыть его любым SQLite клиентом.
+**Q: How to view all payment history?**
+A: All data is stored in `bot_database.db` file. You can open it with any SQLite client.
 
-**Q: Бот не отправляет сообщения в групповой чат**
-A: Убедитесь, что:
-1. Бот добавлен в группу
-2. Бот имеет права администратора в группе
-3. GROUP_CHAT_ID указан правильно (с минусом в начале)
+**Q: Bot doesn't send messages to group chat**
+A: Make sure that:
+1. Bot is added to the group
+2. Bot has administrator rights in the group
+3. GROUP_CHAT_ID is specified correctly (with minus sign at the beginning)
 
-## 📝 Лицензия
+## 📝 License
 
 MIT
 
-## 👨‍💻 Поддержка
+## 👨‍💻 Support
 
-Если у вас возникли проблемы, создайте issue в репозитории.
+If you encounter any problems, create an issue in the repository.
 
 ---
 
-Сделано с ❤️ для управления оплатами
+Made with ❤️ for payment management
 
