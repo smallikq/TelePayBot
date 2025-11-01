@@ -8,6 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from config import Config
 from database import Database
 from models import Payment
+from utils import Validator, RateLimiter
 from keyboards import (
     get_main_menu_keyboard,
     get_cancel_keyboard,
@@ -19,6 +20,7 @@ from keyboards import (
 # Create router for employees
 router = Router()
 db = Database()
+rate_limiter = RateLimiter()
 logger = logging.getLogger(__name__)
 
 
@@ -66,14 +68,30 @@ async def start_payment_creation(message: Message, state: FSMContext):
         await message.answer("❌ У вас нет доступа к этой функции.")
         return
     
-    await state.set_state(PaymentStates.waiting_for_screenshot)
-    await message.answer(
-        "📸 <b>Шаг 1/3: Скриншот</b>\n\n"
-        "Отправьте скриншот (фото).\n\n"
-        "Для отмены нажмите кнопку ниже.",
-        parse_mode="HTML",
-        reply_markup=get_cancel_keyboard()
-    )
+    # Rate limiting check
+    if not rate_limiter.check_rate_limit(user_id, max_requests=3, time_window=300):
+        await message.answer(
+            "⚠️ <b>Слишком много запросов</b>\n\n"
+            "Подождите несколько минут перед созданием новой заявки.",
+            parse_mode="HTML"
+        )
+        return
+    
+    try:
+        await state.set_state(PaymentStates.waiting_for_screenshot)
+        await message.answer(
+            "📸 <b>Шаг 1/3: Скриншот</b>\n\n"
+            "Отправьте скриншот (фото).\n\n"
+            "Для отмены нажмите кнопку ниже.",
+            parse_mode="HTML",
+            reply_markup=get_cancel_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error starting payment creation for user {user_id}: {e}")
+        await message.answer(
+            "❌ Произошла ошибка. Попробуйте позже.",
+            reply_markup=get_main_menu_keyboard()
+        )
 
 
 @router.message(StateFilter(PaymentStates.waiting_for_screenshot), F.photo)
@@ -107,6 +125,19 @@ async def invalid_screenshot(message: Message):
 async def process_balance(message: Message, state: FSMContext):
     """Process balance"""
     balance = message.text.strip()
+    
+    # Validate balance
+    is_valid, error_msg = Validator.validate_balance(balance)
+    if not is_valid:
+        await message.answer(
+            f"❌ <b>Ошибка валидации:</b> {error_msg}\n\n"
+            "Попробуйте ещё раз. Пример: 100$",
+            parse_mode="HTML"
+        )
+        return
+    
+    # Sanitize for safety
+    balance = Validator.sanitize_html(balance)
     await state.update_data(balance=balance)
     
     await state.set_state(PaymentStates.waiting_for_username)
@@ -123,6 +154,20 @@ async def process_balance(message: Message, state: FSMContext):
 async def process_username(message: Message, state: FSMContext):
     """Process username and show preview"""
     username = message.text.strip()
+    
+    # Validate username
+    is_valid, error_msg = Validator.validate_username(username)
+    if not is_valid:
+        await message.answer(
+            f"❌ <b>Ошибка валидации:</b> {error_msg}\n\n"
+            "Попробуйте ещё раз. Пример: @username",
+            parse_mode="HTML"
+        )
+        return
+    
+    # Format and sanitize username
+    username = Validator.format_username(username)
+    username = Validator.sanitize_html(username)
     await state.update_data(username_field=username)
     
     # Get all data
@@ -131,17 +176,25 @@ async def process_username(message: Message, state: FSMContext):
     await state.set_state(PaymentStates.confirming)
     
     # Send preview with photo
-    await message.answer_photo(
-        photo=data['screenshot_file_id'],
-        caption=(
-            "✅ <b>Проверьте данные заявки:</b>\n\n"
-            f"💰 <b>Баланс:</b> {data['balance']}\n"
-            f"🔑 <b>Юзернейм:</b> {data['username_field']}\n\n"
-            "Подтвердите отправку заявки:"
-        ),
-        parse_mode="HTML",
-        reply_markup=get_confirm_keyboard()
-    )
+    try:
+        await message.answer_photo(
+            photo=data['screenshot_file_id'],
+            caption=(
+                "✅ <b>Проверьте данные заявки:</b>\n\n"
+                f"💰 <b>Баланс:</b> {data['balance']}\n"
+                f"🔑 <b>Юзернейм:</b> {data['username_field']}\n\n"
+                "Подтвердите отправку заявки:"
+            ),
+            parse_mode="HTML",
+            reply_markup=get_confirm_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error showing preview for user {message.from_user.id}: {e}")
+        await message.answer(
+            "❌ Произошла ошибка. Попробуйте снова.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        await state.clear()
 
 
 @router.callback_query(F.data == "confirm_payment", StateFilter(PaymentStates.confirming))
@@ -151,57 +204,74 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
     user_id = callback.from_user.id
     username = callback.from_user.username
     
-    # Create payment request
-    payment = Payment(
-        employee_id=user_id,
-        employee_username=username,
-        balance=data['balance'],
-        username_field=data['username_field'],
-        screenshot_file_id=data['screenshot_file_id']
-    )
-    
-    payment_id = await db.create_payment(payment)
-    
-    # Send to all administrators
-    for admin_id in Config.ADMIN_IDS:
-        try:
-            await bot.send_photo(
-                chat_id=admin_id,
-                photo=data['screenshot_file_id'],
-                caption=(
-                    f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
-                    f"👤 <b>Сотрудник:</b> @{username or 'Без юзернейма'}\n"
-                    f"💰 <b>Баланс:</b> {data['balance']}\n"
-                    f"🔑 <b>Юзернейм:</b> {data['username_field']}\n"
-                ),
-                parse_mode="HTML",
-                reply_markup=get_admin_payment_keyboard(payment_id)
+    try:
+        # Create payment request
+        payment = Payment(
+            employee_id=user_id,
+            employee_username=username,
+            balance=data['balance'],
+            username_field=data['username_field'],
+            screenshot_file_id=data['screenshot_file_id']
+        )
+        
+        payment_id = await db.create_payment(payment)
+        
+        # Send to all administrators
+        admin_success = False
+        for admin_id in Config.ADMIN_IDS:
+            try:
+                await bot.send_photo(
+                    chat_id=admin_id,
+                    photo=data['screenshot_file_id'],
+                    caption=(
+                        f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
+                        f"👤 <b>Сотрудник:</b> @{username or 'Без юзернейма'}\n"
+                        f"💰 <b>Баланс:</b> {data['balance']}\n"
+                        f"🔑 <b>Юзернейм:</b> {data['username_field']}\n"
+                    ),
+                    parse_mode="HTML",
+                    reply_markup=get_admin_payment_keyboard(payment_id)
+                )
+                admin_success = True
+            except Exception as e:
+                logger.error(f"Error sending notification to admin {admin_id}: {e}")
+        
+        if not admin_success:
+            await callback.answer(
+                "⚠️ Не удалось отправить уведомление администраторам. Обратитесь к администратору.",
+                show_alert=True
             )
-        except Exception as e:
-            logger.error(f"Ошибка отправки уведомления администратору {admin_id}: {e}")
-    
-    # Edit message at employee chat and save message_id
-    edited_message = await callback.message.edit_caption(
-        caption=(
-            f"✅ <b>Заявка #{payment_id} успешно создана!</b>\n\n"
-            f"💰 <b>Баланс:</b> {data['balance']}\n"
-            f"🔑 <b>Юзернейм:</b> {data['username_field']}\n\n"
-            "Ожидайте обработки администратором."
-        ),
-        parse_mode="HTML"
-    )
-    
-    # Save employee message_id to database
-    await db.update_employee_message_id(payment_id, edited_message.message_id)
-    
-    await callback.answer("✅ Заявка отправлена!")
-    await state.clear()
-    
-    # Return to main menu
-    await callback.message.answer(
-        "Выберите действие:",
-        reply_markup=get_main_menu_keyboard()
-    )
+            return
+        
+        # Edit message at employee chat and save message_id
+        edited_message = await callback.message.edit_caption(
+            caption=(
+                f"✅ <b>Заявка #{payment_id} успешно создана!</b>\n\n"
+                f"💰 <b>Баланс:</b> {data['balance']}\n"
+                f"🔑 <b>Юзернейм:</b> {data['username_field']}\n\n"
+                "Ожидайте обработки администратором."
+            ),
+            parse_mode="HTML"
+        )
+        
+        # Save employee message_id to database
+        await db.update_employee_message_id(payment_id, edited_message.message_id)
+        
+        await callback.answer("✅ Заявка отправлена!")
+        await state.clear()
+        
+        # Return to main menu
+        await callback.message.answer(
+            "Выберите действие:",
+            reply_markup=get_main_menu_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error confirming payment for user {user_id}: {e}")
+        await callback.answer(
+            "❌ Произошла ошибка при создании заявки. Попробуйте позже.",
+            show_alert=True
+        )
+        await state.clear()
 
 
 @router.callback_query(F.data == "cancel_payment", StateFilter(PaymentStates.confirming))

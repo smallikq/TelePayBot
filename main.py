@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -11,13 +12,42 @@ from handlers import employee, admin
 # Logging setup
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
+
+# Global variables for graceful shutdown
+bot_instance = None
+db_instance = None
+
+
+async def shutdown(signal_type=None):
+    """Graceful shutdown handler"""
+    if signal_type:
+        logger.info(f"Получен сигнал {signal_type}, выполняется остановка...")
+    
+    if bot_instance:
+        try:
+            await bot_instance.session.close()
+            logger.info("✅ Bot session closed")
+        except Exception as e:
+            logger.error(f"Error closing bot session: {e}")
+    
+    if db_instance:
+        try:
+            await db_instance.close()
+            logger.info("✅ Database connection closed")
+        except Exception as e:
+            logger.error(f"Error closing database: {e}")
 
 
 async def main():
     """Main function to start the bot"""
+    global bot_instance, db_instance
     
     # Configuration validation
     try:
@@ -28,39 +58,47 @@ async def main():
         return
     
     # Database initialization
-    db = Database()
-    await db.init_db()
-    logger.info("✅ База данных инициализирована")
+    db_instance = Database()
+    try:
+        await db_instance.init_db()
+        logger.info("✅ База данных инициализирована")
+    except Exception as e:
+        logger.error(f"❌ Ошибка инициализации БД: {e}")
+        return
     
     # Create bot and dispatcher
-    bot = Bot(
-        token=Config.BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
-    dp = Dispatcher()
-    
-    # Register routers
-    dp.include_router(employee.router)
-    dp.include_router(admin.router)
-    
-    logger.info("🤖 Бот запущен и готов к работе!")
-    
-    # Send notification to all administrators about launch
-    for admin_id in Config.ADMIN_IDS:
-        try:
-            await bot.send_message(
-                chat_id=admin_id,
-                text="🤖 <b>Бот запущен и готов к работе!</b>",
-                parse_mode=ParseMode.HTML
-            )
-        except Exception as e:
-            logger.warning(f"Не удалось отправить уведомление администратору {admin_id}: {e}")
-    
-    # Start polling
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        bot_instance = Bot(
+            token=Config.BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
+        dp = Dispatcher()
+        
+        # Register routers
+        dp.include_router(employee.router)
+        dp.include_router(admin.router)
+        
+        logger.info("🤖 Бот запущен и готов к работе!")
+        
+        # Send notification to all administrators about launch
+        for admin_id in Config.ADMIN_IDS:
+            try:
+                await bot_instance.send_message(
+                    chat_id=admin_id,
+                    text="🤖 <b>Бот запущен и готов к работе!</b>",
+                    parse_mode=ParseMode.HTML
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось отправить уведомление администратору {admin_id}: {e}")
+        
+        # Start polling
+        await dp.start_polling(bot_instance, allowed_updates=dp.resolve_used_update_types())
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка при запуске бота: {e}")
+        raise
     finally:
-        await bot.session.close()
+        await shutdown()
 
 
 if __name__ == "__main__":

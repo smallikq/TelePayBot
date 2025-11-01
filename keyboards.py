@@ -48,6 +48,9 @@ def get_admin_payment_keyboard(payment_id: int) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="💵 Оплатить 15", callback_data=f"pay_15_{payment_id}"),
             InlineKeyboardButton(text="💵 Оплатить 25", callback_data=f"pay_25_{payment_id}")
+        ],
+        [
+            InlineKeyboardButton(text="💳 Другая сумма", callback_data=f"custom_pay_{payment_id}")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
