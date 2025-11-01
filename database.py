@@ -23,10 +23,22 @@ class Database:
                     screenshot_file_id TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending',
                     payment_amount INTEGER,
+                    replied INTEGER DEFAULT 0,
+                    employee_message_id INTEGER,
                     created_at TIMESTAMP NOT NULL,
                     paid_at TIMESTAMP
                 )
             """)
+            # Add replied column if it doesn't exist (for existing databases)
+            try:
+                await db.execute("ALTER TABLE payments ADD COLUMN replied INTEGER DEFAULT 0")
+            except:
+                pass  # Column already exists
+            # Add employee_message_id column if it doesn't exist
+            try:
+                await db.execute("ALTER TABLE payments ADD COLUMN employee_message_id INTEGER")
+            except:
+                pass  # Column already exists
             await db.commit()
     
     async def create_payment(self, payment: Payment) -> int:
@@ -68,6 +80,8 @@ class Database:
                     screenshot_file_id=row['screenshot_file_id'],
                     status=row['status'],
                     payment_amount=row['payment_amount'],
+                    replied=bool(row['replied']) if 'replied' in row.keys() else False,
+                    employee_message_id=row['employee_message_id'] if 'employee_message_id' in row.keys() else None,
                     created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
                     paid_at=datetime.fromisoformat(row['paid_at']) if row['paid_at'] else None
                 )
@@ -93,6 +107,8 @@ class Database:
                     screenshot_file_id=row['screenshot_file_id'],
                     status=row['status'],
                     payment_amount=row['payment_amount'],
+                    replied=bool(row['replied']) if 'replied' in row.keys() else False,
+                    employee_message_id=row['employee_message_id'] if 'employee_message_id' in row.keys() else None,
                     created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
                     paid_at=datetime.fromisoformat(row['paid_at']) if row['paid_at'] else None
                 ))
@@ -104,6 +120,24 @@ class Database:
             await db.execute(
                 "UPDATE payments SET status = ?, payment_amount = ?, paid_at = ? WHERE id = ?",
                 (status, payment_amount, datetime.now(), payment_id)
+            )
+            await db.commit()
+    
+    async def update_payment_replied(self, payment_id: int):
+        """Update payment request replied status"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE payments SET replied = 1 WHERE id = ?",
+                (payment_id,)
+            )
+            await db.commit()
+    
+    async def update_employee_message_id(self, payment_id: int, message_id: int):
+        """Update employee message ID for payment request"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE payments SET employee_message_id = ? WHERE id = ?",
+                (message_id, payment_id)
             )
             await db.commit()
     

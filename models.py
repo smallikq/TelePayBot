@@ -14,6 +14,8 @@ class Payment:
     screenshot_file_id: str = ""
     status: str = "pending"  # pending, paid
     payment_amount: Optional[int] = None
+    replied: bool = False  # True if admin replied
+    employee_message_id: Optional[int] = None  # Message ID at employee's chat
     created_at: Optional[datetime] = None
     paid_at: Optional[datetime] = None
 

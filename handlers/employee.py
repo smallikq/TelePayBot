@@ -180,7 +180,8 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления администратору {admin_id}: {e}")
     
-    await callback.message.edit_caption(
+    # Edit message at employee chat and save message_id
+    edited_message = await callback.message.edit_caption(
         caption=(
             f"✅ <b>Заявка #{payment_id} успешно создана!</b>\n\n"
             f"💰 <b>Баланс:</b> {data['balance']}\n"
@@ -189,6 +190,9 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot):
         ),
         parse_mode="HTML"
     )
+    
+    # Save employee message_id to database
+    await db.update_employee_message_id(payment_id, edited_message.message_id)
     
     await callback.answer("✅ Заявка отправлена!")
     await state.clear()
@@ -255,6 +259,7 @@ async def show_my_payments(message: Message):
     
     for payment in payments:
         created_at = payment.created_at.strftime("%d.%m.%Y %H:%M")
+        replied_text = "\n✍️ <b>Отписал</b>" if payment.replied else ""
         await message.answer_photo(
             photo=payment.screenshot_file_id,
             caption=(
@@ -263,6 +268,7 @@ async def show_my_payments(message: Message):
                 f"💰 <b>Баланс:</b> {payment.balance}\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
                 f"📊 <b>Статус:</b> ⏳ Ожидает обработки"
+                f"{replied_text}"
             ),
             parse_mode="HTML",
             reply_markup=get_payment_actions_keyboard(payment.id)

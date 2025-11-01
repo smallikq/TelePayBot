@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
@@ -7,6 +8,71 @@ from database import Database
 # Create router for administrator
 router = Router()
 db = Database()
+logger = logging.getLogger(__name__)
+
+
+@router.callback_query(F.data.startswith("replied_"))
+async def process_replied(callback: CallbackQuery, bot):
+    """Handle admin replied action"""
+    user_id = callback.from_user.id
+    
+    if not Config.is_admin(user_id):
+        await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
+        return
+    
+    # Parse callback_data: replied_123
+    payment_id = int(callback.data.split("_")[1])
+    
+    # Get payment request information
+    payment = await db.get_payment_by_id(payment_id)
+    
+    if not payment:
+        await callback.answer("❌ Заявка не найдена!", show_alert=True)
+        return
+    
+    if payment.status == "paid":
+        await callback.answer("❌ Заявка уже оплачена!", show_alert=True)
+        return
+    
+    if payment.replied:
+        await callback.answer("❌ Вы уже отписали по этой заявке!", show_alert=True)
+        return
+    
+    # Update replied status in database
+    await db.update_payment_replied(payment_id)
+    
+    # Update administrator's message with "Отписал" note
+    await callback.message.edit_caption(
+        caption=(
+            f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
+            f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}\n"
+            f"💰 <b>Баланс:</b> {payment.balance}\n"
+            f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
+            f"✍️ <b>Отписал</b>"
+        ),
+        parse_mode="HTML",
+        reply_markup=callback.message.reply_markup
+    )
+    
+    # Edit employee's message with "Отписал" note
+    if payment.employee_message_id:
+        try:
+            await bot.edit_message_caption(
+                chat_id=payment.employee_id,
+                message_id=payment.employee_message_id,
+                caption=(
+                    f"✅ <b>Заявка #{payment_id} успешно создана!</b>\n\n"
+                    f"💰 <b>Баланс:</b> {payment.balance}\n"
+                    f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
+                    f"Ожидайте обработки администратором.\n\n"
+                    f"✍️ <b>Отписал</b>"
+                ),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при редактировании сообщения сотрудника: {e}")
+    
+    await callback.answer("✅ Отмечено как 'Отписал'")
 
 
 @router.callback_query(F.data.startswith("pay_"))
@@ -38,13 +104,15 @@ async def process_payment(callback: CallbackQuery, bot):
     await db.update_payment_status(payment_id, "paid", payment_amount)
     
     # Update administrator's message
+    replied_text = "\n✍️ <b>Отписал</b>" if payment.replied else ""
     await callback.message.edit_caption(
         caption=(
             f"✅ <b>Заявка #{payment_id} ОПЛАЧЕНА</b>\n\n"
             f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}\n"
             f"💰 <b>Баланс:</b> {payment.balance}\n"
             f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
-            f"💵 <b>Сумма оплаты:</b> {payment_amount}\n"
+            f"💵 <b>Сумма оплаты:</b> {payment_amount}"
+            f"{replied_text}"
         ),
         parse_mode="HTML"
     )
