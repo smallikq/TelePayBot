@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 from config import Config
 from database import Database
-from handlers import employee, admin
+from handlers import employee, admin, employee_management
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +69,7 @@ async def main() -> None:
         
         dp.include_router(employee.router)
         dp.include_router(admin.router)
+        dp.include_router(employee_management.router)
         
         logger.info("🤖 Бот запущен и готов к работе!")
         

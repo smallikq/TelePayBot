@@ -8,7 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from config import Config
 from database import Database
 from models import Payment
-from utils import Validator, RateLimiter
+from utils import Validator, RateLimiter, format_user_link
 from keyboards import (
     get_main_menu_keyboard,
     get_cancel_keyboard,
@@ -34,7 +34,20 @@ class PaymentStates(StatesGroup):
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     
-    if not Config.is_employee(user_id):
+    # Проверяем, является ли пользователь администратором
+    if Config.is_admin(user_id):
+        from keyboards import get_admin_menu_keyboard
+        await message.answer(
+            "🔧 <b>Панель администратора</b>\n\n"
+            "Добро пожаловать! Используйте кнопки ниже для управления ботом.",
+            parse_mode="HTML",
+            reply_markup=get_admin_menu_keyboard()
+        )
+        return
+    
+    # Проверяем, является ли пользователь сотрудником
+    is_employee = await db.is_employee(user_id)
+    if not is_employee:
         await message.answer(
             "❌ <b>Доступ запрещен</b>\n\n"
             "Вы не являетесь сотрудником.\n"
@@ -47,7 +60,7 @@ async def cmd_start(message: Message) -> None:
     await message.answer(
         f"👋 <b>Добро пожаловать, @{username}!</b>\n\n"
         "🤖 Я бот для подачи заявок на оплату.\n\n"
-        "<b>Доступные команды:</b>\n"
+        "<b>Доступные действия:</b>\n"
         "📝 <b>Создать заявку</b> - отправить новую заявку на оплату\n"
         "📋 <b>Мои заявки</b> - посмотреть активные заявки\n\n"
         "Выберите действие из меню ниже 👇",
@@ -60,7 +73,8 @@ async def cmd_start(message: Message) -> None:
 async def start_payment_creation(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
     
-    if not Config.is_employee(user_id):
+    is_employee = await db.is_employee(user_id)
+    if not is_employee:
         await message.answer("❌ У вас нет доступа к этой функции.")
         return
     
@@ -198,6 +212,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
         
         payment_id = await db.create_payment(payment)
         
+        employee_link = format_user_link(user_id, username)
         admin_success = False
         for admin_id in Config.ADMIN_IDS:
             try:
@@ -206,7 +221,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
                     photo=data['screenshot_file_id'],
                     caption=(
                         f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
-                        f"👤 <b>Сотрудник:</b> @{username or 'Без юзернейма'}\n"
+                        f"👤 <b>Сотрудник:</b> {employee_link}\n"
                         f"💰 <b>Баланс:</b> {data['balance']}\n"
                         f"🔑 <b>Юзернейм:</b> {data['username_field']}\n"
                     ),
@@ -280,7 +295,8 @@ async def cancel_operation(message: Message, state: FSMContext) -> None:
 async def show_my_payments(message: Message) -> None:
     user_id = message.from_user.id
     
-    if not Config.is_employee(user_id):
+    is_employee = await db.is_employee(user_id)
+    if not is_employee:
         await message.answer("❌ У вас нет доступа к этой функции.")
         return
     

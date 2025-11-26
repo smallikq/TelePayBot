@@ -5,10 +5,11 @@ Telegram bot for managing employee payment requests with automatic notifications
 ## 🎯 Features
 
 - 📝 Create payment requests
-- � Quick payment processing
+- 💵 Quick payment processing
 - 📊 Automatic group notifications
 - 📈 Payment statistics
-- � Access control and validation
+- 🔒 Access control and validation
+- 👥 Employee management via bot (database-driven)
 
 ## 📋 Requirements
 
@@ -29,10 +30,11 @@ Create `.env` file:
 
 ```env
 BOT_TOKEN=your_bot_token
-ADMIN_ID=your_telegram_id
+ADMIN_ID=your_telegram_id,another_admin_id
 GROUP_CHAT_ID=group_chat_id
-EMPLOYEE_IDS=id1,id2,id3
 ```
+
+**Note:** Employee IDs are now managed via database. See Migration section below.
 
 ### 3. Run
 
@@ -53,6 +55,11 @@ python main.py
 - Process payments with quick buttons (15/25) or custom amount
 - Mark requests as replied
 - View statistics with `/stats`
+- Manage employees:
+  - `/employees` - View all employees
+  - `/add_employee` - Add new employee
+  - `/remove_employee` - Remove employee
+- `/help` - Show all admin commands
 
 ## 🗂 Project Structure
 
@@ -65,7 +72,8 @@ python main.py
 ├── utils.py               # Validators and utilities
 └── handlers/              # Request handlers
     ├── employee.py
-    └── admin.py
+    ├── admin.py
+    └── employee_management.py
 ```
 
 ## � Tech Stack
@@ -73,6 +81,16 @@ python main.py
 - aiogram 3.13.1
 - aiosqlite
 - python-dotenv
+
+## 🔄 Migration from .env to Database
+
+If you're upgrading from a version that used `EMPLOYEE_IDS` in `.env`:
+
+```bash
+python migrate_employees.py
+```
+
+This will transfer all employee IDs from `.env` to the database. After migration, you can manage employees through bot commands.
 
 ## 📝 License
 

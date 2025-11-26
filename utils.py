@@ -1,6 +1,22 @@
 """Utility functions for the bot"""
 import re
-from typing import Tuple
+from typing import Tuple, Optional
+
+
+def format_user_link(user_id: int, username: Optional[str] = None, first_name: Optional[str] = None) -> str:
+    """
+    Форматирует имя пользователя как кликабельную ссылку на профиль.
+    
+    Args:
+        user_id: Telegram ID пользователя
+        username: Username пользователя (если есть)
+        first_name: Имя пользователя (если нет username)
+    
+    Returns:
+        HTML-ссылка на профиль пользователя
+    """
+    display_name = f"@{username}" if username else (first_name or f"ID{user_id}")
+    return f'<a href="tg://user?id={user_id}">{display_name}</a>'
 
 
 class Validator:

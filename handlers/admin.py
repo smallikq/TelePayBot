@@ -7,6 +7,8 @@ from aiogram.fsm.state import State, StatesGroup
 
 from config import Config
 from database import Database
+from utils import format_user_link
+from keyboards import get_admin_menu_keyboard
 
 router = Router()
 db = Database()
@@ -17,12 +19,12 @@ class CustomPaymentStates(StatesGroup):
     waiting_for_amount = State()
 
 
-@router.message(Command("stats"))
+@router.message(F.text == "📊 Статистика")
 async def show_statistics(message: Message) -> None:
     user_id = message.from_user.id
     
     if not Config.is_admin(user_id):
-        await message.answer("❌ У вас нет прав для этой команды!")
+        await message.answer("❌ У вас нет прав для этого действия!")
         return
     
     try:
@@ -38,8 +40,8 @@ async def show_statistics(message: Message) -> None:
         if stats['by_employee']:
             text += "\n<b>По сотрудникам:</b>\n"
             for emp_id, emp_data in stats['by_employee'].items():
-                username = emp_data['username'] or f"ID{emp_id}"
-                text += f"  • @{username}: {emp_data['count']} заявок (${emp_data['amount']})\n"
+                user_link = format_user_link(emp_id, emp_data['username'])
+                text += f"  • {user_link}: {emp_data['count']} заявок (${emp_data['amount']})\n"
         
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
@@ -47,7 +49,7 @@ async def show_statistics(message: Message) -> None:
         await message.answer("❌ Ошибка при получении статистики.")
 
 
-@router.message(Command("help"))
+@router.message(F.text == "❓ Помощь")
 async def admin_help(message: Message) -> None:
     user_id = message.from_user.id
     
@@ -55,16 +57,34 @@ async def admin_help(message: Message) -> None:
         return
     
     text = (
-        "🔧 <b>Команды администратора:</b>\n\n"
-        "/stats - Показать статистику\n"
-        "/help - Эта справка\n\n"
+        "🔧 <b>Руководство администратора:</b>\n\n"
+        "<b>📊 Основные функции:</b>\n"
+        "📊 Статистика - Показать статистику за 30 дней\n"
+        "👥 Управление сотрудниками - Добавить/удалить сотрудников\n\n"
         "<b>Кнопки на заявках:</b>\n"
         "✍️ <b>Отписал</b> - Отметить, что вы связались с сотрудником\n"
         "💵 <b>Оплатить 15/25</b> - Быстрая оплата\n"
         "💳 <b>Другая сумма</b> - Указать произвольную сумму оплаты\n"
     )
     
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML", reply_markup=get_admin_menu_keyboard())
+
+
+@router.callback_query(F.data == "back_to_admin_menu")
+async def back_to_admin_menu(callback: CallbackQuery) -> None:
+    """Вернуться в админ-меню"""
+    if not Config.is_admin(callback.from_user.id):
+        await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
+        return
+    
+    await callback.message.delete()
+    await callback.message.answer(
+        "🔧 <b>Панель администратора</b>\n\n"
+        "Выберите действие:",
+        parse_mode="HTML",
+        reply_markup=get_admin_menu_keyboard()
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("custom_pay_"))
@@ -139,6 +159,7 @@ async def custom_payment_process(message: Message, state: FSMContext, bot) -> No
     try:
         await db.update_payment_status(payment_id, "paid", payment_amount)
         
+        employee_link = format_user_link(payment.employee_id, payment.employee_username)
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
             photo=payment.screenshot_file_id,
@@ -146,7 +167,7 @@ async def custom_payment_process(message: Message, state: FSMContext, bot) -> No
                 "✅ <b>Оплачено</b>\n\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
                 f"💵 <b>Оплата:</b> {payment_amount}\n"
-                f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}"
+                f"👤 <b>Сотрудник:</b> {employee_link}"
             ),
             parse_mode="HTML"
         )
@@ -204,10 +225,11 @@ async def process_replied(callback: CallbackQuery, bot) -> None:
     
     await db.update_payment_replied(payment_id)
     
+    employee_link = format_user_link(payment.employee_id, payment.employee_username)
     await callback.message.edit_caption(
         caption=(
             f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
-            f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}\n"
+            f"👤 <b>Сотрудник:</b> {employee_link}\n"
             f"💰 <b>Баланс:</b> {payment.balance}\n"
             f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
             f"✍️ <b>Отписал</b>"
@@ -260,11 +282,12 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
     
     await db.update_payment_status(payment_id, "paid", payment_amount)
     
+    employee_link = format_user_link(payment.employee_id, payment.employee_username)
     replied_text = "\n✍️ <b>Отписал</b>" if payment.replied else ""
     await callback.message.edit_caption(
         caption=(
             f"✅ <b>Заявка #{payment_id} ОПЛАЧЕНА</b>\n\n"
-            f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}\n"
+            f"👤 <b>Сотрудник:</b> {employee_link}\n"
             f"💰 <b>Баланс:</b> {payment.balance}\n"
             f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
             f"💵 <b>Сумма оплаты:</b> {payment_amount}"
@@ -274,6 +297,7 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
     )
     
     try:
+        employee_link = format_user_link(payment.employee_id, payment.employee_username)
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
             photo=payment.screenshot_file_id,
@@ -281,7 +305,7 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
                 "✅ <b>Оплачено</b>\n\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
                 f"💵 <b>Оплата:</b> {payment_amount}\n"
-                f"👤 <b>Сотрудник:</b> @{payment.employee_username or 'Без юзернейма'}"
+                f"👤 <b>Сотрудник:</b> {employee_link}"
             ),
             parse_mode="HTML"
         )

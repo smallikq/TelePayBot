@@ -32,6 +32,18 @@ class Database:
     async def init_db(self):
         try:
             async with self.get_connection() as db:
+                # Таблица сотрудников
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS employees (
+                        user_id INTEGER PRIMARY KEY,
+                        username TEXT,
+                        first_name TEXT,
+                        added_at TIMESTAMP NOT NULL,
+                        added_by INTEGER NOT NULL,
+                        is_active INTEGER DEFAULT 1
+                    )
+                """)
+                
                 await db.execute("""
                     CREATE TABLE IF NOT EXISTS payments (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -270,4 +282,84 @@ class Database:
         if self._connection:
             await self._connection.close()
             logger.info("Database connection closed")
+    
+    # Методы для управления сотрудниками
+    
+    async def add_employee(self, user_id: int, username: str = None, first_name: str = None, added_by: int = 0) -> bool:
+        """Добавить сотрудника в базу данных"""
+        try:
+            async with self.get_connection() as db:
+                await db.execute("""
+                    INSERT OR REPLACE INTO employees (user_id, username, first_name, added_at, added_by, is_active)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                """, (user_id, username, first_name, datetime.now(), added_by))
+                await db.commit()
+                logger.info(f"Added employee {user_id} (@{username}) by admin {added_by}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to add employee {user_id}: {e}")
+            return False
+    
+    async def remove_employee(self, user_id: int) -> bool:
+        """Удалить сотрудника из базы данных"""
+        try:
+            async with self.get_connection() as db:
+                await db.execute(
+                    "UPDATE employees SET is_active = 0 WHERE user_id = ?",
+                    (user_id,)
+                )
+                await db.commit()
+                logger.info(f"Removed employee {user_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to remove employee {user_id}: {e}")
+            return False
+    
+    async def get_all_employees(self) -> List[dict]:
+        """Получить список всех активных сотрудников"""
+        try:
+            async with self.get_connection() as db:
+                cursor = await db.execute(
+                    "SELECT * FROM employees WHERE is_active = 1 ORDER BY added_at DESC"
+                )
+                rows = await cursor.fetchall()
+                employees = []
+                for row in rows:
+                    employees.append({
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'first_name': row['first_name'],
+                        'added_at': datetime.fromisoformat(row['added_at']) if row['added_at'] else None
+                    })
+                return employees
+        except Exception as e:
+            logger.error(f"Failed to get employees: {e}")
+            return []
+    
+    async def is_employee(self, user_id: int) -> bool:
+        """Проверить, является ли пользователь сотрудником"""
+        try:
+            async with self.get_connection() as db:
+                cursor = await db.execute(
+                    "SELECT user_id FROM employees WHERE user_id = ? AND is_active = 1",
+                    (user_id,)
+                )
+                row = await cursor.fetchone()
+                return row is not None
+        except Exception as e:
+            logger.error(f"Failed to check employee {user_id}: {e}")
+            return False
+    
+    async def get_employee_count(self) -> int:
+        """Получить количество активных сотрудников"""
+        try:
+            async with self.get_connection() as db:
+                cursor = await db.execute(
+                    "SELECT COUNT(*) as count FROM employees WHERE is_active = 1"
+                )
+                row = await cursor.fetchone()
+                return row['count'] if row else 0
+        except Exception as e:
+            logger.error(f"Failed to get employee count: {e}")
+            return 0
 
