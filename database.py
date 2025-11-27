@@ -362,4 +362,18 @@ class Database:
         except Exception as e:
             logger.error(f"Failed to get employee count: {e}")
             return 0
+    
+    async def get_employee_name(self, user_id: int) -> Optional[str]:
+        """Получить имя сотрудника"""
+        try:
+            async with self.get_connection() as db:
+                cursor = await db.execute(
+                    "SELECT first_name FROM employees WHERE user_id = ? AND is_active = 1",
+                    (user_id,)
+                )
+                row = await cursor.fetchone()
+                return row['first_name'] if row else None
+        except Exception as e:
+            logger.error(f"Failed to get employee name for {user_id}: {e}")
+            return None
 

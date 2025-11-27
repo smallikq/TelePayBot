@@ -160,6 +160,7 @@ async def custom_payment_process(message: Message, state: FSMContext, bot) -> No
         await db.update_payment_status(payment_id, "paid", payment_amount)
         
         employee_link = format_user_link(payment.employee_id, payment.employee_username)
+        employee_name = await db.get_employee_name(payment.employee_id)
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
             photo=payment.screenshot_file_id,
@@ -167,16 +168,19 @@ async def custom_payment_process(message: Message, state: FSMContext, bot) -> No
                 "✅ <b>Оплачено</b>\n\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
                 f"💵 <b>Оплата:</b> {payment_amount}\n"
-                f"👤 <b>Сотрудник:</b> {employee_link}"
+                f"👤 <b>Сотрудник:</b> {employee_link}\n"
+                f"👨 <b>Имя:</b> {employee_name or 'Не указано'}"
             ),
             parse_mode="HTML"
         )
         
         try:
+            employee_name = await db.get_employee_name(payment.employee_id)
             await bot.send_message(
                 chat_id=payment.employee_id,
                 text=(
                     f"✅ <b>Ваша заявка #{payment_id} оплачена!</b>\n\n"
+                    f"👨 <b>Имя:</b> {employee_name or 'Не указано'}\n"
                     f"💵 <b>Сумма:</b> {payment_amount}\n"
                     f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
                     "Спасибо за работу! 🎉"
@@ -226,10 +230,12 @@ async def process_replied(callback: CallbackQuery, bot) -> None:
     await db.update_payment_replied(payment_id)
     
     employee_link = format_user_link(payment.employee_id, payment.employee_username)
+    employee_name = callback.bot_data.get("employees", {}).get(payment.employee_id, {}).get("full_name", "Не указано")
     await callback.message.edit_caption(
         caption=(
             f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
             f"👤 <b>Сотрудник:</b> {employee_link}\n"
+            f"👨 <b>Имя:</b> {employee_name}\n"
             f"💰 <b>Баланс:</b> {payment.balance}\n"
             f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
             f"✍️ <b>Отписал</b>"
@@ -283,11 +289,13 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
     await db.update_payment_status(payment_id, "paid", payment_amount)
     
     employee_link = format_user_link(payment.employee_id, payment.employee_username)
+    employee_name = callback.bot_data.get("employees", {}).get(payment.employee_id, {}).get("full_name", "Не указано")
     replied_text = "\n✍️ <b>Отписал</b>" if payment.replied else ""
     await callback.message.edit_caption(
         caption=(
             f"✅ <b>Заявка #{payment_id} ОПЛАЧЕНА</b>\n\n"
             f"👤 <b>Сотрудник:</b> {employee_link}\n"
+            f"👨 <b>Имя:</b> {employee_name}\n"
             f"💰 <b>Баланс:</b> {payment.balance}\n"
             f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
             f"💵 <b>Сумма оплаты:</b> {payment_amount}"
@@ -298,6 +306,7 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
     
     try:
         employee_link = format_user_link(payment.employee_id, payment.employee_username)
+        employee_name = callback.bot_data.get("employees", {}).get(payment.employee_id, {}).get("full_name", "Не указано")
         await bot.send_photo(
             chat_id=Config.GROUP_CHAT_ID,
             photo=payment.screenshot_file_id,
@@ -305,7 +314,8 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
                 "✅ <b>Оплачено</b>\n\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n"
                 f"💵 <b>Оплата:</b> {payment_amount}\n"
-                f"👤 <b>Сотрудник:</b> {employee_link}"
+                f"👤 <b>Сотрудник:</b> {employee_link}\n"
+                f"👨 <b>Имя:</b> {employee_name}"
             ),
             parse_mode="HTML"
         )
@@ -317,10 +327,12 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
         return
     
     try:
+        employee_name = await db.get_employee_name(payment.employee_id)
         await bot.send_message(
             chat_id=payment.employee_id,
             text=(
                 f"✅ <b>Ваша заявка #{payment_id} оплачена!</b>\n\n"
+                f"👨 <b>Имя:</b> {employee_name or 'Не указано'}\n"
                 f"💵 <b>Сумма:</b> {payment_amount}\n"
                 f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
                 "Спасибо за работу! 🎉"
