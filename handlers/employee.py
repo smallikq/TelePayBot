@@ -213,6 +213,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
         payment_id = await db.create_payment(payment)
         
         employee_link = format_user_link(user_id, username)
+        employee_name = await db.get_employee_name(user_id)
         admin_success = False
         for admin_id in Config.ADMIN_IDS:
             try:
@@ -222,6 +223,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
                     caption=(
                         f"📋 <b>Новая заявка #{payment_id}</b>\n\n"
                         f"👤 <b>Сотрудник:</b> {employee_link}\n"
+                        f"👨 <b>Имя:</b> {employee_name or 'Не указано'}\n"
                         f"💰 <b>Баланс:</b> {data['balance']}\n"
                         f"🔑 <b>Юзернейм:</b> {data['username_field']}\n"
                     ),
