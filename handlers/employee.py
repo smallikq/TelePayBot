@@ -202,9 +202,11 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
     username = callback.from_user.username
     
     try:
+        first_name = callback.from_user.first_name
         payment = Payment(
             employee_id=user_id,
             employee_username=username,
+            employee_first_name=first_name,
             balance=data['balance'],
             username_field=data['username_field'],
             screenshot_file_id=data['screenshot_file_id']
@@ -213,7 +215,7 @@ async def confirm_payment(callback: CallbackQuery, state: FSMContext, bot) -> No
         payment_id = await db.create_payment(payment)
         
         employee_link = format_user_link(user_id, username)
-        employee_name = await db.get_employee_name(user_id)
+        employee_name = await db.get_employee_name(user_id) or first_name or username or "Не указано"
         admin_success = False
         for admin_id in Config.ADMIN_IDS:
             try:

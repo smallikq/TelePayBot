@@ -78,6 +78,10 @@ class Database:
                     await db.execute("ALTER TABLE payments ADD COLUMN employee_message_id INTEGER")
                 except:
                     pass
+                try:
+                    await db.execute("ALTER TABLE payments ADD COLUMN employee_first_name TEXT")
+                except:
+                    pass
                     
                 await db.commit()
                 logger.info("Database initialized successfully")
@@ -91,12 +95,13 @@ class Database:
             async with self.get_connection() as db:
                 cursor = await db.execute("""
                     INSERT INTO payments (
-                        employee_id, employee_username, balance, username_field,
+                        employee_id, employee_username, employee_first_name, balance, username_field,
                         screenshot_file_id, status, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     payment.employee_id,
                     payment.employee_username,
+                    payment.employee_first_name,
                     payment.balance,
                     payment.username_field,
                     payment.screenshot_file_id,
@@ -125,6 +130,7 @@ class Database:
                         id=row['id'],
                         employee_id=row['employee_id'],
                         employee_username=row['employee_username'],
+                        employee_first_name=row['employee_first_name'] if 'employee_first_name' in row.keys() else None,
                         balance=row['balance'],
                         username_field=row['username_field'],
                         screenshot_file_id=row['screenshot_file_id'],
@@ -155,6 +161,7 @@ class Database:
                         id=row['id'],
                         employee_id=row['employee_id'],
                         employee_username=row['employee_username'],
+                        employee_first_name=row['employee_first_name'] if 'employee_first_name' in row.keys() else None,
                         balance=row['balance'],
                         username_field=row['username_field'],
                         screenshot_file_id=row['screenshot_file_id'],
