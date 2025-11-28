@@ -67,7 +67,8 @@ def get_admin_payment_keyboard(payment_id: int) -> InlineKeyboardMarkup:
     """Кнопки действий администратора для заявки"""
     keyboard = [
         [
-            InlineKeyboardButton(text="✍️ Отписал", callback_data=f"replied_{payment_id}")
+            InlineKeyboardButton(text="✍️ Отписал", callback_data=f"replied_{payment_id}"),
+            InlineKeyboardButton(text="📨 Отписать лиду", callback_data=f"notify_trader_{payment_id}")
         ],
         [
             InlineKeyboardButton(text="💵 Оплатить 15", callback_data=f"pay_15_{payment_id}"),

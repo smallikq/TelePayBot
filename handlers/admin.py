@@ -344,3 +344,41 @@ async def process_payment(callback: CallbackQuery, bot) -> None:
     
     await callback.answer(f"✅ Заявка оплачена на сумму {payment_amount}!")
 
+
+@router.callback_query(F.data.startswith("notify_trader_"))
+async def notify_trader(callback: CallbackQuery, bot) -> None:
+    user_id = callback.from_user.id
+    
+    if not Config.is_admin(user_id):
+        await callback.answer("❌ У вас нет прав для этого действия!", show_alert=True)
+        return
+    
+    payment_id = int(callback.data.split("_")[2])
+    
+    payment = await db.get_payment_by_id(payment_id)
+    
+    if not payment:
+        await callback.answer("❌ Заявка не найдена!", show_alert=True)
+        return
+    
+    if payment.status == "paid":
+        await callback.answer("❌ Заявка уже оплачена!", show_alert=True)
+        return
+    
+    try:
+        await bot.send_message(
+            chat_id=payment.employee_id,
+            text=(
+                f"📨 <b>Уведомление по заявке #{payment_id}</b>\n\n"
+                f"Пожалуйста, отпишите этому лиду:\n"
+                f"🔑 <b>Юзернейм:</b> {payment.username_field}\n\n"
+                "Свяжитесь с клиентом как можно скорее!"
+            ),
+            parse_mode="HTML"
+        )
+        await callback.answer("✅ Уведомление отправлено трейдеру!")
+    except Exception as e:
+        logger.error(f"Failed to notify trader: {e}")
+        await callback.answer("❌ Ошибка при отправке уведомления!", show_alert=True)
+
+
